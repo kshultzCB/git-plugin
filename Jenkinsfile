@@ -1,6 +1,6 @@
 #!groovy
 
-// Test plugin compatibility to recent Jenkins LTS
+// Test plugin compatibility with recent Jenkins LTS
 buildPlugin(jenkinsVersions: [null, '2.150.1'],
             findbugs: [run:true, archive:true, unstableTotalAll: '0'],
             failFast: false)
