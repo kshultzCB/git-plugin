@@ -1,6 +1,7 @@
 package hudson.plugins.git.util;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.AbstractBuild;
 import hudson.model.Action;
 import hudson.model.Api;
@@ -36,23 +37,24 @@ import java.util.logging.Logger;
  * at run time to build up an {@link BuildData} object.
  */
 @ExportedBean(defaultVisibility = 999)
-public class BuildDetails implements Action, Serializable, Cloneable {
+public class BuildDetails implements Action, Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
      * The current build.
      */
-    public Build build;
+    private final Build build;
 
     /**
      * The name of the SCM as given by the user.
      */
-    public String scmName;
+    private String scmName;
 
     /**
      * The URLs that have been referenced.
      */
-    public Set<String> remoteUrls = new HashSet<>();
+    @NonNull
+    private Set<String> remoteUrls = new HashSet<>();
 
     /**
      * Allow disambiguation of the action url when multiple {@link BuildDetails} actions present.
@@ -60,21 +62,17 @@ public class BuildDetails implements Action, Serializable, Cloneable {
     @CheckForNull
     private Integer index;
 
-    public BuildDetails(Build build) {
-        this.build = build;
-    }
-
-    public BuildDetails(Build build, String scmName) {
-        this.build = build;
-        this.scmName = scmName;
-    }
-
     public BuildDetails(Build build, String scmName, Collection<UserRemoteConfig> remoteConfigs) {
         this.build = build;
         this.scmName = scmName;
         for(UserRemoteConfig c : remoteConfigs) {
             remoteUrls.add(c.getUrl());
         }
+    }
+
+    @Exported
+    public final Build getBuild() {
+        return build;
     }
 
     /**
@@ -88,7 +86,7 @@ public class BuildDetails implements Action, Serializable, Cloneable {
      */
     public String getDisplayName() {
         if (scmName != null && !scmName.isEmpty())
-            return "Git Build Details:" + scmName;
+            return "Git Build Details: " + scmName;
         return "Git Build Details";
     }
 
@@ -129,13 +127,6 @@ public class BuildDetails implements Action, Serializable, Cloneable {
         return req.findAncestorObject(Run.class);
     }
 
-    public Object readResolve() {
-        if(this.remoteUrls == null)
-            this.remoteUrls = new HashSet<>();
-
-        return this;
-    }
-
     public void setScmName(String scmName)
     {
         this.scmName = scmName;
@@ -160,30 +151,6 @@ public class BuildDetails implements Action, Serializable, Cloneable {
 
     public boolean hasBeenReferenced(String remoteUrl) {
         return remoteUrls.contains(remoteUrl);
-    }
-
-    @Override
-    public BuildDetails clone() {
-        BuildDetails clone;
-        try {
-            clone = (BuildDetails) super.clone();
-        }
-        catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Error cloning BuildDetails", e);
-        }
-
-        clone.remoteUrls = new HashSet<>();
-
-        if (build != null) {
-            clone.build = build;
-        }
-
-        for(String remoteUrl : getRemoteUrls())
-        {
-            clone.addRemoteUrl(remoteUrl);
-        }
-
-        return clone;
     }
 
     public Api getApi() {
@@ -293,7 +260,7 @@ public class BuildDetails implements Action, Serializable, Cloneable {
 
     public int hashCode() {
         int result = 3;
-        result = result * 17 + ((this.remoteUrls == null) ? 5 : this.remoteUrls.hashCode());
+        result = result * 17 + this.remoteUrls.hashCode();
         result = result * 17 + ((this.build == null) ? 11 : this.build.hashCode());
         return result;
     }
