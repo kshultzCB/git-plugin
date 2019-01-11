@@ -88,7 +88,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>git-client</artifactId>
-      <version>3.0.0-beta6</version>
+      <version>3.0.0-beta6-rc1831.3506eebd3e1f</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
