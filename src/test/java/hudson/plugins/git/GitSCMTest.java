@@ -356,68 +356,69 @@ public class GitSCMTest extends AbstractGitTestCase {
 
     // If a merge commit changes something outside of our included region, we should
     // not build the project.
-//    @Issue({"JENKINS-20389","JENKINS-23606"})
-//    @Test
-//    public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
-//        FreeStyleProject project = setupProject("master", false, null, null, null, ".*included");
-//
-//        // Now we create a new SCM so that we can
-//        GitSCM scm = new GitSCM(
-//                createRemoteRepositories(),
-//                Collections.singletonList(new BranchSpec("*")),
-//                false, Collections.<SubmoduleConfig>emptyList(),
-//                null, null,
-//                Collections.<GitSCMExtension>emptyList());
-//        scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "integration", "default", MergeCommand.GitPluginFastForwardMode.FF)));
-//        addChangelogToBranchExtension(scm);
-//        project.setScm(scm);
-//
-//        // create initial commit and then run the build against it.
-//        // Instantiate our file
-//        final String commitFile1 = "commitFile1";
-//        // Commit this file as johnDoe
-//        commit(commitFile1, johnDoe, "Commit number 1");
-//        // We build this, on master, with only commitFile1 in the repo
-//        build(project, Result.SUCCESS, commitFile1);
-//
-//        // NEW BRANCH STUFF HERE
-//        // Create a new branch
-//        testRepo.git.branch("new-branch-we-merge-to-master");
-//        // Check out the new branch
-//        testRepo.git.checkout().branch("new-branch-we-merge-to-master");
-//        // Create a file object to merge to this new branch
-//        final String newFileToCommitAndMerge = "file-to-merge";
-//        // Commit the file
-//        commit(newFileToCommitAndMerge, johnDoe, "We will commit and then merge this");
-//        // Build the project on the "new-branch-we-merge-to-master" branch, and verify
-//        // the presence of our new file
-//        final FreeStyleBuild build1 = build(project, Result.SUCCESS, newFileToCommitAndMerge);
-//        assertTrue("Found file-to-merge",build1.getWorkspace().child(newFileToCommitAndMerge).exists());
-//
-//        // Check again to make sure there are no further changes
-//        assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
-//
-//        final String commitFile2 = "commitFile2";
-//        commit(commitFile2, janeDoe, "Commit number 2");
-//        assertFalse("scm polling detected commit2 change, which should not have been included", project.poll(listener).hasChanges());
-//
-//        final String commitFile3 = "commitFile.included";
-//        commit(commitFile3, johnDoe, "Commit number 3");
-//        assertTrue("SCM polling detects commitFile.included change", project.poll(listener).hasChanges());
-//
-//        //... and build it...
-//        final FreeStyleBuild build2 = build(project, Result.SUCCESS, commitFile2, commitFile3);
-//        final Set<User> culprits = build2.getCulprits();
-//        assertEquals("The build should have two culprit", 2, culprits.size());
-//
-//        PersonIdent[] expected = {johnDoe, janeDoe};
-//        assertCulprits("jane doe and john doe should be the culprits", culprits, expected);
-//
-//        assertTrue(build2.getWorkspace().child(commitFile2).exists());
-//        assertTrue(build2.getWorkspace().child(commitFile3).exists());
-//        rule.assertBuildStatusSuccess(build2);
-//        assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
-//    }
+    @Issue({"JENKINS-20389","JENKINS-23606"})
+    @Test
+    public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
+        FreeStyleProject project = setupProject("master", false, null, null, null, ".*included");
+
+        // Now we create a new SCM so that we can
+        GitSCM scm = new GitSCM(
+                createRemoteRepositories(),
+                Collections.singletonList(new BranchSpec("*")),
+                false, Collections.<SubmoduleConfig>emptyList(),
+                null, null,
+                Collections.<GitSCMExtension>emptyList());
+        scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
+        addChangelogToBranchExtension(scm);
+        project.setScm(scm);
+
+        // create initial commit and then run the build against it.
+        // Instantiate our file
+        final String commitFile1 = "commitFile1";
+        // Commit this file as johnDoe
+        commit(commitFile1, johnDoe, "Commit number 1");
+        // We build this, on master, with only commitFile1 in the repo
+        build(project, Result.SUCCESS, commitFile1);
+
+        // NEW BRANCH STUFF HERE
+        // Create a new branch
+        testRepo.git.branch("new-branch-we-merge-to-master");
+        System.out.println("--> Branches are " + testRepo.git.getBranches().toString());
+        // Check out the new branch. This is not working.
+        testRepo.git.checkout().branch("new-branch-we-merge-to-master");
+        // Create a file object to merge to this new branch
+        final String newFileToCommitAndMerge = "file-to-merge";
+        // Commit the file
+        commit(newFileToCommitAndMerge, johnDoe, "We will commit and then merge this");
+        // Build the project on the "new-branch-we-merge-to-master" branch, and verify
+        // the presence of our new file
+        final FreeStyleBuild build1 = build(project, Result.SUCCESS, newFileToCommitAndMerge);
+        assertTrue("Found file-to-merge",build1.getWorkspace().child(newFileToCommitAndMerge).exists());
+
+        // Check again to make sure there are no further changes
+        assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
+
+        final String commitFile2 = "commitFile2";
+        commit(commitFile2, janeDoe, "Commit number 2");
+        assertFalse("scm polling detected commit2 change, which should not have been included", project.poll(listener).hasChanges());
+
+        final String commitFile3 = "commitFile.included";
+        commit(commitFile3, johnDoe, "Commit number 3");
+        assertTrue("SCM polling detects commitFile.included change", project.poll(listener).hasChanges());
+
+        //... and build it...
+        final FreeStyleBuild build2 = build(project, Result.SUCCESS, commitFile2, commitFile3);
+        final Set<User> culprits = build2.getCulprits();
+        assertEquals("The build should have two culprit", 2, culprits.size());
+
+        PersonIdent[] expected = {johnDoe, janeDoe};
+        assertCulprits("jane doe and john doe should be the culprits", culprits, expected);
+
+        assertTrue(build2.getWorkspace().child(commitFile2).exists());
+        assertTrue(build2.getWorkspace().child(commitFile3).exists());
+        rule.assertBuildStatusSuccess(build2);
+        assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
+    }
 
     @Test
     public void testIncludedRegionWithDeeperCommits() throws Exception {
