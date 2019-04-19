@@ -354,14 +354,13 @@ public class GitSCMTest extends AbstractGitTestCase {
         assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
     }
 
-    // If a merge commit changes something outside of our included region, we should
+    // If a commit changes something outside of our included region, we should
     // not build the project.
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
     public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
-        FreeStyleProject project = setupProject("master", false, null, null, null, ".*included");
+        FreeStyleProject project = setupProject("master", false, null, null, null, "*included");
 
-        // Now we create a new SCM so that we can
         GitSCM scm = new GitSCM(
                 createRemoteRepositories(),
                 Collections.singletonList(new BranchSpec("*")),
@@ -373,51 +372,44 @@ public class GitSCMTest extends AbstractGitTestCase {
         project.setScm(scm);
 
         // create initial commit and then run the build against it.
-        // Instantiate our file
-        final String commitFile1 = "commitFile1";
-        // Commit this file as johnDoe
-        commit(commitFile1, johnDoe, "Commit number 1");
-        // We build this, on master, with only commitFile1 in the repo
+        final String commitFile1 = "initial-commit";
+        commit(commitFile1, johnDoe, "Commit number 1: " + commitFile1);
+        commit(commitFile1, johnDoe, "Commit " + newFileToCommitAndMerge + " to master");
         build(project, Result.SUCCESS, commitFile1);
 
-        // NEW BRANCH STUFF HERE
         // Create a new branch
-        testRepo.git.branch("new-branch-we-merge-to-master");
-        System.out.println("--> Branches are " + testRepo.git.getBranches().toString());
-        // Check out the new branch. This is not working.
-        testRepo.git.checkout().branch("new-branch-we-merge-to-master");
+        final String branchToMerge = "new-branch-we-merge-to-master";
+        testRepo.git.branch(branchToMerge);
+        // Check out the new branch. This feels like a hack? Maybe it's not. The former
+        // git.checkout(String branch) is deprecated.
+        git.checkoutBranch(branchToMerge, "refs/heads/" + branchToMerge);
         // Create a file object to merge to this new branch
         final String newFileToCommitAndMerge = "file-to-merge";
         // Commit the file
-        commit(newFileToCommitAndMerge, johnDoe, "We will commit and then merge this");
-        // Build the project on the "new-branch-we-merge-to-master" branch, and verify
-        // the presence of our new file
+        commit(newFileToCommitAndMerge, johnDoe, "Commit " + newFileToCommitAndMerge + " to " + branchToMerge);
+        // Build the project on the "new-branch-we-merge-to-master" branch,
+        // and verify the presence of our new file
         final FreeStyleBuild build1 = build(project, Result.SUCCESS, newFileToCommitAndMerge);
         assertTrue("Found file-to-merge",build1.getWorkspace().child(newFileToCommitAndMerge).exists());
-
         // Check again to make sure there are no further changes
-        assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
+        assertFalse("scm polling should not detect any more changes after build",
+                project.poll(listener).hasChanges());
 
-        final String commitFile2 = "commitFile2";
-        commit(commitFile2, janeDoe, "Commit number 2");
-        assertFalse("scm polling detected commit2 change, which should not have been included", project.poll(listener).hasChanges());
+        // NEW COMMITS TO SEE WHAT STUFF GETS NOTICED BY POLLING
+        // First thing we should do is add commitfile.included
+        final String commitFile2 = "commitFile.included";
+        commit(commitFile2, johnDoe, "Commit number 3");
+        assertTrue("SCM polling detects " + commitFile2 + " change", project.poll(listener).hasChanges());
 
-        final String commitFile3 = "commitFile.included";
-        commit(commitFile3, johnDoe, "Commit number 3");
-        assertTrue("SCM polling detects commitFile.included change", project.poll(listener).hasChanges());
+        final String commitFile3 = "commitFile.excluded";
+        commit(commitFile3, janeDoe, "Commit number 3");
 
-        //... and build it...
-        final FreeStyleBuild build2 = build(project, Result.SUCCESS, commitFile2, commitFile3);
-        final Set<User> culprits = build2.getCulprits();
-        assertEquals("The build should have two culprit", 2, culprits.size());
+        // TODO: Do the merge.
 
-        PersonIdent[] expected = {johnDoe, janeDoe};
-        assertCulprits("jane doe and john doe should be the culprits", culprits, expected);
+        // But why does this fail? Shouldn't this pass right now?
+        assertFalse("Polling should not detect " + commitFile3 + ", because it does not match the included pattern",
+                project.poll(listener).hasChanges());
 
-        assertTrue(build2.getWorkspace().child(commitFile2).exists());
-        assertTrue(build2.getWorkspace().child(commitFile3).exists());
-        rule.assertBuildStatusSuccess(build2);
-        assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
     }
 
     @Test
