@@ -359,6 +359,8 @@ public class GitSCMTest extends AbstractGitTestCase {
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
     public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
+        final String branchToMerge = "new-branch-we-merge-to-master";
+
         FreeStyleProject project = setupProject("master", false, null, null, null, "*included");
 
         GitSCM scm = new GitSCM(
@@ -368,48 +370,28 @@ public class GitSCMTest extends AbstractGitTestCase {
                 null, null,
                 Collections.<GitSCMExtension>emptyList());
         scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
+        // scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "new-branch-we-merge-to-master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
         addChangelogToBranchExtension(scm);
         project.setScm(scm);
 
         // create initial commit and then run the build against it.
-        final String commitFile1 = "initial-commit";
-        commit(commitFile1, johnDoe, "Commit number 1: " + commitFile1);
-        commit(commitFile1, johnDoe, "Commit " + newFileToCommitAndMerge + " to master");
-        build(project, Result.SUCCESS, commitFile1);
+        final String initialCommit = "initialCommit";
+        commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
+        build(project, Result.SUCCESS, initialCommit);
 
-        // Create a new branch
-        final String branchToMerge = "new-branch-we-merge-to-master";
         testRepo.git.branch(branchToMerge);
-        // Check out the new branch. This feels like a hack? Maybe it's not. The former
-        // git.checkout(String branch) is deprecated.
         git.checkoutBranch(branchToMerge, "refs/heads/" + branchToMerge);
-        // Create a file object to merge to this new branch
-        final String newFileToCommitAndMerge = "file-to-merge";
-        // Commit the file
-        commit(newFileToCommitAndMerge, johnDoe, "Commit " + newFileToCommitAndMerge + " to " + branchToMerge);
-        // Build the project on the "new-branch-we-merge-to-master" branch,
-        // and verify the presence of our new file
-        final FreeStyleBuild build1 = build(project, Result.SUCCESS, newFileToCommitAndMerge);
-        assertTrue("Found file-to-merge",build1.getWorkspace().child(newFileToCommitAndMerge).exists());
-        // Check again to make sure there are no further changes
-        assertFalse("scm polling should not detect any more changes after build",
+        // Create a file to commit to the new branch. This file should not be
+        // "noticed" by polling, because it is not part of the included range.
+        final String fileToMerge = "fileToMerge.excluded";
+        commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
+
+        // git.checkoutBranch("master", "refs/heads/master");
+        git.merge();
+
+        System.out.println("==KS==> This will probably fail the test");
+        assertFalse("scm polling should not detect any more changes after the merge",
                 project.poll(listener).hasChanges());
-
-        // NEW COMMITS TO SEE WHAT STUFF GETS NOTICED BY POLLING
-        // First thing we should do is add commitfile.included
-        final String commitFile2 = "commitFile.included";
-        commit(commitFile2, johnDoe, "Commit number 3");
-        assertTrue("SCM polling detects " + commitFile2 + " change", project.poll(listener).hasChanges());
-
-        final String commitFile3 = "commitFile.excluded";
-        commit(commitFile3, janeDoe, "Commit number 3");
-
-        // TODO: Do the merge.
-
-        // But why does this fail? Shouldn't this pass right now?
-        assertFalse("Polling should not detect " + commitFile3 + ", because it does not match the included pattern",
-                project.poll(listener).hasChanges());
-
     }
 
     @Test
