@@ -361,7 +361,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, null, null, "*included");
+        FreeStyleProject project = setupProject("master", false, null, null, null, "*\\.included");
 
         GitSCM scm = new GitSCM(
                 createRemoteRepositories(),
@@ -369,8 +369,11 @@ public class GitSCMTest extends AbstractGitTestCase {
                 false, Collections.<SubmoduleConfig>emptyList(),
                 null, null,
                 Collections.<GitSCMExtension>emptyList());
+        // This one seems like it does work.
         scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
+        // This is the one I think should work.
         // scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "new-branch-we-merge-to-master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
+
         addChangelogToBranchExtension(scm);
         project.setScm(scm);
 
@@ -386,10 +389,13 @@ public class GitSCMTest extends AbstractGitTestCase {
         final String fileToMerge = "fileToMerge.excluded";
         commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
-        // git.checkoutBranch("master", "refs/heads/master");
-        git.merge();
+        // This merge to master isn't working and I'm stuck.
+        testRepo.git.checkoutBranch("master", "refs/heads/master");
+        testRepo.git.merge();
 
-        System.out.println("==KS==> This will probably fail the test");
+        // This assert fails, but not for the reason it should. When I'm on the filesystem
+        // I can plainly see nothing has been changed on master, so, why are we
+        // failing? This should assertFalse for hasChanges, because there's no changes.
         assertFalse("scm polling should not detect any more changes after the merge",
                 project.poll(listener).hasChanges());
     }
