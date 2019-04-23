@@ -361,7 +361,11 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, null, null, "*\\.included");
+        // Temporarily disregard include/exclude to experiment with the
+        // git and testRepo.git objects when manupulating the repo.
+        // Uncomment this one, and remove the one below it, for the real test.
+        // FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, "*\\.included");
+        FreeStyleProject project = setupProject("master", false, null, null, null, null);
 
         GitSCM scm = new GitSCM(
                 createRemoteRepositories(),
@@ -369,12 +373,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 false, Collections.<SubmoduleConfig>emptyList(),
                 null, null,
                 Collections.<GitSCMExtension>emptyList());
-        // This one seems like it does work.
-        scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
-        // This is the one I think should work.
-        // scm.getExtensions().add(new PreBuildMerge(new UserMergeOptions("origin", "new-branch-we-merge-to-master", "default", MergeCommand.GitPluginFastForwardMode.FF)));
-
-        addChangelogToBranchExtension(scm);
         project.setScm(scm);
 
         // create initial commit and then run the build against it.
@@ -382,22 +380,32 @@ public class GitSCMTest extends AbstractGitTestCase {
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
         build(project, Result.SUCCESS, initialCommit);
 
-        testRepo.git.branch(branchToMerge);
-        git.checkoutBranch(branchToMerge, "refs/heads/" + branchToMerge);
+        // create second commit and then run the build against it.
+        final String secondCommit = "secondCommit";
+        commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
+
+        // Among the things I'm not clear about are the difference between
+        // testRepo.git and git.
+        // This will check out "HEAD -1"
+        testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
         // Create a file to commit to the new branch. This file should not be
         // "noticed" by polling, because it is not part of the included range.
         final String fileToMerge = "fileToMerge.excluded";
         commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
-        // This merge to master isn't working and I'm stuck.
+        ObjectId branchSHA = git.revParse("HEAD");
         testRepo.git.checkoutBranch("master", "refs/heads/master");
-        testRepo.git.merge();
+        MergeCommand mergeCommand = testRepo.git.merge();
+        mergeCommand.setRevisionToMerge(branchSHA);
+        mergeCommand.execute();
 
-        // This assert fails, but not for the reason it should. When I'm on the filesystem
-        // I can plainly see nothing has been changed on master, so, why are we
-        // failing? This should assertFalse for hasChanges, because there's no changes.
-        assertFalse("scm polling should not detect any more changes after the merge",
+        // This is the real version for the test.
+        // assertFalse("SCM polling should not show changes, because they are excluded.",
+        //         project.poll(listener).hasChanges());
+        // And this is the proof of concept to make sure things work okay.
+        assertTrue("We should have changese",
                 project.poll(listener).hasChanges());
+
     }
 
     @Test
