@@ -356,10 +356,10 @@ public class GitSCMTest extends AbstractGitTestCase {
 
     /**
      * testMergeCommitInExcludedRegionIsIgnored() confirms behavior of excluded regions with merge commits.
-     * This test has excluded and includeds regions, for files ending with .excluded and .included,
-     * respectively The git repository is set up so that a non-fast-forward, but mergeable, commit comes
-     * to master. The newly merged commit is a file
-     * ending with .excluded, so it should be ignored.
+     * This test has excluded and included regions, for files ending with .excluded and .included,
+     * respectively. The git repository is set up so that a non-fast-forward, but mergeable, commit comes
+     * to master. The newly merged commit is a file ending with .excluded, so it should be ignored.
+     *
      * @throws Exception on error
      */
     @Issue({"JENKINS-20389","JENKINS-23606"})
@@ -406,7 +406,9 @@ public class GitSCMTest extends AbstractGitTestCase {
      * testMergeCommitInIncludedRegionIsProcessed() confirms behavior of included regions with merge commits.
      * This test has excluded and includeds regions, for files ending with .excluded and .included,
      * respectively. The git repository is set up so that a non-fast-forward, but mergeable, commit
-     * comes to master. The newly merged commit is a file ending with .included, so it should be seen as a change.
+     * comes to master. The newly merged commit is a file ending with .included, so it should be processed
+     * as a new change.
+     *
      * @throws Exception on error
      */
     @Issue({"JENKINS-20389","JENKINS-23606"})
@@ -452,9 +454,10 @@ public class GitSCMTest extends AbstractGitTestCase {
 
     /**
      * testMergeCommitOutsideIncludedRegionIsIgnored() confirms behavior of included regions with merge commits.
-     * This test has an included regions defined, for files ending with ..included. The git repository is set up
+     * This test has an included regions defined, for files ending with .included. The git repository is set up
      * so that a non-fast-forward, but mergeable, commit comes to master. The newly merged commit is a file
      * ending with .should-be-ignored, thus falling outside of the included region, so it should ignored.
+     *
      * @throws Exception on error
      */
     @Issue({"JENKINS-20389","JENKINS-23606"})
@@ -503,8 +506,9 @@ public class GitSCMTest extends AbstractGitTestCase {
      * testMergeCommitOutsideExcludedRegionIsProcessed() confirms behavior of excluded regions with merge commits.
      * This test has an excluded region defined, for files ending with .excluded. The git repository is set up
      * so that a non-fast-forward, but mergeable, commit comes to master. The newly merged commit is a file
-     * ending with .should-be-processed, thus falling outside of the excluded region, so it should processed as a
-     * new change.
+     * ending with .should-be-processed, thus falling outside of the excluded region, so it should processed
+     * as a new change.
+     *
      * @throws Exception on error
      */
     @Issue({"JENKINS-20389","JENKINS-23606"})
