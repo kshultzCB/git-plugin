@@ -354,18 +354,14 @@ public class GitSCMTest extends AbstractGitTestCase {
         assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
     }
 
-    // If a commit changes something outside of our included region, we should
+    // If a merge commit changes something in our excluded region, we should
     // not build the project.
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
-    public void testIncludedRegionIsOnlyThingToTriggerABuild() throws Exception {
+    public void testMergeCommitInExcludedRegionIsIgnored() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        // Temporarily disregard include/exclude to experiment with the
-        // git and testRepo.git objects when manupulating the repo.
-        // Uncomment this one, and remove the one below it, for the real test.
-        // FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, "*\\.included");
-        FreeStyleProject project = setupProject("master", false, null, null, null, null);
+        FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, "*\\.included");
 
         GitSCM scm = new GitSCM(
                 createRemoteRepositories(),
@@ -375,21 +371,20 @@ public class GitSCMTest extends AbstractGitTestCase {
                 Collections.<GitSCMExtension>emptyList());
         project.setScm(scm);
 
-        // create initial commit and then run the build against it.
+        // Create initial commit and then run the build against it.
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
         build(project, Result.SUCCESS, initialCommit);
 
-        // create second commit and then run the build against it.
+        // Create our second commit
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // Among the things I'm not clear about are the difference between
-        // testRepo.git and git.
-        // This will check out "HEAD -1"
+        // Check out our new branch that we intend to merge to master.
+        // This will check out at what amounts to "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
         // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is not part of the included range.
+        // "noticed" by polling, because it is part of the excluded range.
         final String fileToMerge = "fileToMerge.excluded";
         commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
@@ -399,14 +394,61 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.setRevisionToMerge(branchSHA);
         mergeCommand.execute();
 
-        // This is the real version for the test.
-        // assertFalse("SCM polling should not show changes, because they are excluded.",
-        //         project.poll(listener).hasChanges());
-        // And this is the proof of concept to make sure things work okay.
-        assertTrue("We should have changese",
+        // When this test passes, project.poll(listener).hasChanges()) should return
+        // false, because our commit falls within the excluded range.
+        assertFalse("SCM polling should see no changes, because they are excluded.",
                 project.poll(listener).hasChanges());
-
     }
+
+
+    // If a merge commit changes something in our included region, we should
+    // see this as a change and build the project.
+    @Issue({"JENKINS-20389","JENKINS-23606"})
+    @Test
+    public void testMergeCommitInIncludedRegionIsProcessed() throws Exception {
+        final String branchToMerge = "new-branch-we-merge-to-master";
+
+        FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, "*\\.included");
+
+        GitSCM scm = new GitSCM(
+                createRemoteRepositories(),
+                Collections.singletonList(new BranchSpec("*")),
+                false, Collections.<SubmoduleConfig>emptyList(),
+                null, null,
+                Collections.<GitSCMExtension>emptyList());
+        project.setScm(scm);
+
+        // Create initial commit and then run the build against it.
+        final String initialCommit = "initialCommit";
+        commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
+        build(project, Result.SUCCESS, initialCommit);
+
+        // Create our second commit
+        final String secondCommit = "secondCommit";
+        commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
+
+        // Check out our new branch that we intend to merge to master.
+        // This will check out at what amounts to "HEAD -1"
+        testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
+        // Create a file to commit to the new branch. This file should not be
+        // "noticed" by polling, because it is part of the excluded range.
+        final String fileToMerge = "fileToMerge.included";
+        commit(fileToMerge, johnDoe, "Commit should be noticed and seen as a change: " + fileToMerge + " to " + branchToMerge);
+
+        ObjectId branchSHA = git.revParse("HEAD");
+        testRepo.git.checkoutBranch("master", "refs/heads/master");
+        MergeCommand mergeCommand = testRepo.git.merge();
+        mergeCommand.setRevisionToMerge(branchSHA);
+        mergeCommand.execute();
+
+        // When this test passes, project.poll(listener).hasChanges()) should return
+        // true, because our commit falls within the included range.
+        assertTrue("SCM polling should see the changes, because they are included.",
+                project.poll(listener).hasChanges());
+    }
+
+
+
 
     @Test
     public void testIncludedRegionWithDeeperCommits() throws Exception {
