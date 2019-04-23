@@ -493,7 +493,8 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // false, because our commit falls outside of the included region.
+        // false, because our commit falls outside of the included region, and should
+        // thus be ignored.
         assertFalse("SCM polling should ignore the change, because it falls outside the included region.",
                 project.poll(listener).hasChanges());
     }
@@ -542,8 +543,9 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // false, because our commit falls outside of the included region.
-        assertFalse("SCM polling should process the change, because it falls outside the excluded region.",
+        // true, because our commit falls outside of the excluded region, and should
+        // thus be processed.
+        assertTrue("SCM polling should process the change, because it falls outside the excluded region.",
                 project.poll(listener).hasChanges());
     }
 
