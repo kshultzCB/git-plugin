@@ -354,8 +354,14 @@ public class GitSCMTest extends AbstractGitTestCase {
         assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
     }
 
-    // If a merge commit changes something in our excluded region, we should
-    // not build the project.
+    /**
+     * testMergeCommitInExcludedRegionIsIgnored() confirms behavior of excluded regions with merge commits.
+     * This test has excluded and includeds regions, for files ending with .excluded and .included,
+     * respectively The git repository is set up so that a non-fast-forward, but mergeable, commit comes
+     * to master. The newly merged commit is a file
+     * ending with .excluded, so it should be ignored.
+     * @throws Exception on error
+     */
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
     public void testMergeCommitInExcludedRegionIsIgnored() throws Exception {
@@ -371,20 +377,16 @@ public class GitSCMTest extends AbstractGitTestCase {
                 Collections.<GitSCMExtension>emptyList());
         project.setScm(scm);
 
-        // Create initial commit and then run the build against it.
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
         build(project, Result.SUCCESS, initialCommit);
-
-        // Create our second commit
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // Check out our new branch that we intend to merge to master.
-        // This will check out at what amounts to "HEAD -1"
+        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
         // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is part of the excluded range.
+        // "noticed" by polling, because it is part of the excluded region.
         final String fileToMerge = "fileToMerge.excluded";
         commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
@@ -395,14 +397,18 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // false, because our commit falls within the excluded range.
+        // false, because our commit falls within the excluded region.
         assertFalse("SCM polling should see no changes, because they are excluded.",
                 project.poll(listener).hasChanges());
     }
 
-
-    // If a merge commit changes something in our included region, we should
-    // see this as a change and build the project.
+    /**
+     * testMergeCommitInIncludedRegionIsProcessed() confirms behavior of included regions with merge commits.
+     * This test has excluded and includeds regions, for files ending with .excluded and .included,
+     * respectively. The git repository is set up so that a non-fast-forward, but mergeable, commit
+     * comes to master. The newly merged commit is a file ending with .included, so it should be seen as a change.
+     * @throws Exception on error
+     */
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
     public void testMergeCommitInIncludedRegionIsProcessed() throws Exception {
@@ -418,22 +424,19 @@ public class GitSCMTest extends AbstractGitTestCase {
                 Collections.<GitSCMExtension>emptyList());
         project.setScm(scm);
 
-        // Create initial commit and then run the build against it.
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
         build(project, Result.SUCCESS, initialCommit);
 
-        // Create our second commit
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // Check out our new branch that we intend to merge to master.
-        // This will check out at what amounts to "HEAD -1"
+        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
         // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is part of the excluded range.
+        // "noticed" by polling, because it is part of the excluded region.
         final String fileToMerge = "fileToMerge.included";
-        commit(fileToMerge, johnDoe, "Commit should be noticed and seen as a change: " + fileToMerge + " to " + branchToMerge);
+        commit(fileToMerge, johnDoe, "Commit should be noticed and processed as a change: " + fileToMerge + " to " + branchToMerge);
 
         ObjectId branchSHA = git.revParse("HEAD");
         testRepo.git.checkoutBranch("master", "refs/heads/master");
@@ -442,13 +445,18 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // true, because our commit falls within the included range.
+        // true, because our commit falls within the included region.
         assertTrue("SCM polling should see the changes, because they are included.",
                 project.poll(listener).hasChanges());
     }
 
-    // If we only have an included region defined, and a merge commit changes something
-    // outside of that range, the change should be ignored.
+    /**
+     * testMergeCommitOutsideIncludedRegionIsIgnored() confirms behavior of included regions with merge commits.
+     * This test has an included regions defined, for files ending with ..included. The git repository is set up
+     * so that a non-fast-forward, but mergeable, commit comes to master. The newly merged commit is a file
+     * ending with .should-be-ignored, thus falling outside of the included region, so it should ignored.
+     * @throws Exception on error
+     */
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
     public void testMergeCommitOutsideIncludedRegionIsIgnored() throws Exception {
@@ -464,22 +472,19 @@ public class GitSCMTest extends AbstractGitTestCase {
                 Collections.<GitSCMExtension>emptyList());
         project.setScm(scm);
 
-        // Create initial commit and then run the build against it.
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
         build(project, Result.SUCCESS, initialCommit);
 
-        // Create our second commit
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // Check out our new branch that we intend to merge to master.
-        // This will check out at what amounts to "HEAD -1"
+        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
         // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is part of the excluded range.
+        // "noticed" by polling, because it is outside of the excluded region.
         final String fileToMerge = "fileToMerge.should-be-ignored";
-        commit(fileToMerge, johnDoe, "Commit should be noticed and ignored: " + fileToMerge + " to " + branchToMerge);
+        commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
         ObjectId branchSHA = git.revParse("HEAD");
         testRepo.git.checkoutBranch("master", "refs/heads/master");
@@ -488,13 +493,19 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // false, because our commit falls outside of the included range.
-        assertFalse("SCM polling should ignore the change, because it falls outside the included range.",
+        // false, because our commit falls outside of the included region.
+        assertFalse("SCM polling should ignore the change, because it falls outside the included region.",
                 project.poll(listener).hasChanges());
     }
-    
-    // If we only have an excluded region defined, and a merge commit changes something
-    // outside of that range, the change should be processed.
+
+    /**
+     * testMergeCommitOutsideExcludedRegionIsProcessed() confirms behavior of excluded regions with merge commits.
+     * This test has an excluded region defined, for files ending with .excluded. The git repository is set up
+     * so that a non-fast-forward, but mergeable, commit comes to master. The newly merged commit is a file
+     * ending with .should-be-processed, thus falling outside of the excluded region, so it should processed as a
+     * new change.
+     * @throws Exception on error
+     */
     @Issue({"JENKINS-20389","JENKINS-23606"})
     @Test
     public void testMergeCommitOutsideExcludedRegionIsProcessed() throws Exception {
@@ -510,20 +521,17 @@ public class GitSCMTest extends AbstractGitTestCase {
                 Collections.<GitSCMExtension>emptyList());
         project.setScm(scm);
 
-        // Create initial commit and then run the build against it.
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
         build(project, Result.SUCCESS, initialCommit);
 
-        // Create our second commit
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // Check out our new branch that we intend to merge to master.
-        // This will check out at what amounts to "HEAD -1"
+        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
-        // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is part of the excluded range.
+        // Create a file to commit to the new branch. This file should be
+        // "noticed" by polling, because it is outside of the excluded region.
         final String fileToMerge = "fileToMerge.should-be-processed";
         commit(fileToMerge, johnDoe, "Commit should be noticed and processed as a change: " + fileToMerge + " to " + branchToMerge);
 
@@ -534,8 +542,8 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // false, because our commit falls outside of the included range.
-        assertFalse("SCM polling should process the change, because it falls outside the excluded range.",
+        // false, because our commit falls outside of the included region.
+        assertFalse("SCM polling should process the change, because it falls outside the excluded region.",
                 project.poll(listener).hasChanges());
     }
 
