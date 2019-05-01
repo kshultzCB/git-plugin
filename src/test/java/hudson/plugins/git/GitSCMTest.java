@@ -367,15 +367,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitInExcludedRegionIsIgnored() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, "*\\.included");
-
-        GitSCM scm = new GitSCM(
-                createRemoteRepositories(),
-                Collections.singletonList(new BranchSpec("*")),
-                false, Collections.<SubmoduleConfig>emptyList(),
-                null, null,
-                Collections.<GitSCMExtension>emptyList());
-        project.setScm(scm);
+        FreeStyleProject project = setupProject("master", false, null, ".*\\.excluded", null, ".*\\.included");
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -383,10 +375,7 @@ public class GitSCMTest extends AbstractGitTestCase {
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
-        // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is part of the excluded region.
         final String fileToMerge = "fileToMerge.excluded";
         commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
@@ -397,7 +386,7 @@ public class GitSCMTest extends AbstractGitTestCase {
         mergeCommand.execute();
 
         // When this test passes, project.poll(listener).hasChanges()) should return
-        // false, because our commit falls within the excluded region.
+        // false, because our merge commit falls within the excluded region.
         assertFalse("SCM polling should see no changes, because they are excluded.",
                 project.poll(listener).hasChanges());
     }
@@ -416,15 +405,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitInIncludedRegionIsProcessed() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, "*\\.included");
-
-        GitSCM scm = new GitSCM(
-                createRemoteRepositories(),
-                Collections.singletonList(new BranchSpec("*")),
-                false, Collections.<SubmoduleConfig>emptyList(),
-                null, null,
-                Collections.<GitSCMExtension>emptyList());
-        project.setScm(scm);
+        FreeStyleProject project = setupProject("master", false, null, ".*\\.excluded", null, ".*\\.included");
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -433,10 +414,7 @@ public class GitSCMTest extends AbstractGitTestCase {
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
-        // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is part of the excluded region.
         final String fileToMerge = "fileToMerge.included";
         commit(fileToMerge, johnDoe, "Commit should be noticed and processed as a change: " + fileToMerge + " to " + branchToMerge);
 
@@ -465,15 +443,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitOutsideIncludedRegionIsIgnored() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, null, null, "*\\.included");
-
-        GitSCM scm = new GitSCM(
-                createRemoteRepositories(),
-                Collections.singletonList(new BranchSpec("*")),
-                false, Collections.<SubmoduleConfig>emptyList(),
-                null, null,
-                Collections.<GitSCMExtension>emptyList());
-        project.setScm(scm);
+        FreeStyleProject project = setupProject("master", false, null, null, null, ".*\\.included");
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -482,10 +452,7 @@ public class GitSCMTest extends AbstractGitTestCase {
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
-        // Create a file to commit to the new branch. This file should not be
-        // "noticed" by polling, because it is outside of the excluded region.
         final String fileToMerge = "fileToMerge.should-be-ignored";
         commit(fileToMerge, johnDoe, "Commit should be ignored: " + fileToMerge + " to " + branchToMerge);
 
@@ -516,15 +483,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitOutsideExcludedRegionIsProcessed() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "*\\.excluded", null, null);
-
-        GitSCM scm = new GitSCM(
-                createRemoteRepositories(),
-                Collections.singletonList(new BranchSpec("*")),
-                false, Collections.<SubmoduleConfig>emptyList(),
-                null, null,
-                Collections.<GitSCMExtension>emptyList());
-        project.setScm(scm);
+        FreeStyleProject project = setupProject("master", false, null, ".*\\.excluded", null, null);
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -533,10 +492,7 @@ public class GitSCMTest extends AbstractGitTestCase {
         final String secondCommit = "secondCommit";
         commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
 
-        // This will check out "HEAD -1"
         testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
-        // Create a file to commit to the new branch. This file should be
-        // "noticed" by polling, because it is outside of the excluded region.
         final String fileToMerge = "fileToMerge.should-be-processed";
         commit(fileToMerge, johnDoe, "Commit should be noticed and processed as a change: " + fileToMerge + " to " + branchToMerge);
 
