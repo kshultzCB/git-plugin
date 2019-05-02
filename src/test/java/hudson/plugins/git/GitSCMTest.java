@@ -636,7 +636,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitOutsideExcludedDirectoryIsProcessed() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "/excluded/.*", null, "null");
+        FreeStyleProject project = setupProject("master", false, null, "/excluded/.*", null, null);
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
