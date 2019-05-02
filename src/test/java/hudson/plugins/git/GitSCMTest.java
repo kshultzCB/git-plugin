@@ -644,6 +644,45 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
+
+
+
+
+    // DIRECTORY TEST - FAILS CURRENTLY
+    @Issue({"JENKINS-20389","JENKINS-23606"})
+    @Test
+    public void testMergeCommitOutsideExcludedDirectoryIsProcessed() throws Exception {
+        final String branchToMerge = "new-branch-we-merge-to-master";
+
+        FreeStyleProject project = setupProject("master", false, null, "/excluded/.*", null, "null");
+
+        final String initialCommit = "initialCommit";
+        commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
+        build(project, Result.SUCCESS, initialCommit);
+
+        final String secondCommit = "secondCommit";
+        commit(secondCommit, johnDoe, "Commit " + secondCommit + " to master");
+
+        testRepo.git.checkoutBranch(branchToMerge, "HEAD~");
+        final String fileToMerge = "included/should-be-processed";
+        commit(fileToMerge, johnDoe, "Commit should be noticed and processed as a change: " + fileToMerge + " to " + branchToMerge);
+
+        ObjectId branchSHA = git.revParse("HEAD");
+        testRepo.git.checkoutBranch("master", "refs/heads/master");
+        MergeCommand mergeCommand = testRepo.git.merge();
+        mergeCommand.setRevisionToMerge(branchSHA);
+        mergeCommand.execute();
+
+        // When this test passes, project.poll(listener).hasChanges()) should return
+        // true, because our commit falls outside of the excluded region, and should
+        // thus be processed.
+        assertTrue("SCM polling should process the change, because it falls outside the excluded directory.",
+                project.poll(listener).hasChanges());
+    }
+
+
+
+
     @Test
     public void testIncludedRegionWithDeeperCommits() throws Exception {
         FreeStyleProject project = setupProject("master", false, null, null, null, ".*3");
