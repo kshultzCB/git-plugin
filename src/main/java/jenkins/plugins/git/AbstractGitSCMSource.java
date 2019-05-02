@@ -34,12 +34,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.EnvVars;
-import hudson.Extension;
 import hudson.RestrictedSince;
 import hudson.Util;
 import hudson.model.Action;
 import hudson.model.Actionable;
-import hudson.model.Item;
 import hudson.model.TaskListener;
 import hudson.plugins.git.Branch;
 import hudson.plugins.git.GitException;
@@ -52,7 +50,6 @@ import hudson.plugins.git.extensions.GitSCMExtension;
 import hudson.plugins.git.util.Build;
 import hudson.plugins.git.util.BuildChooser;
 import hudson.plugins.git.util.BuildChooserContext;
-import hudson.plugins.git.util.BuildChooserDescriptor;
 import hudson.plugins.git.util.BuildData;
 import hudson.plugins.git.util.GitUtils;
 import hudson.scm.SCM;
@@ -314,7 +311,13 @@ public abstract class AbstractGitSCMSource extends SCMSource {
     }
 
     private interface Retriever<T> {
-        T run(GitClient client, String remoteName) throws IOException, InterruptedException;
+        default T run(GitClient client, String remoteName) throws IOException, InterruptedException {
+            throw new AbstractMethodError("Not implemented");
+        }
+    }
+
+    private interface Retriever2<T> extends Retriever<T> {
+        T run(GitClient client, String remoteName, FetchCommand fetch) throws IOException, InterruptedException;
     }
 
     @NonNull
@@ -322,6 +325,15 @@ public abstract class AbstractGitSCMSource extends SCMSource {
                                                                                                  @NonNull C context,
                                                                                                  @NonNull TaskListener listener,
                                                                                                  boolean prune)
+            throws IOException, InterruptedException {
+        return doRetrieve(retriever, context, listener, prune, false);
+    }
+
+    @NonNull
+    private <T, C extends GitSCMSourceContext<C, R>, R extends GitSCMSourceRequest> T doRetrieve(Retriever<T> retriever,
+                                                                                                 @NonNull C context,
+                                                                                                 @NonNull TaskListener listener,
+                                                                                                 boolean prune, boolean delayFetch)
             throws IOException, InterruptedException {
         String cacheEntry = getCacheEntry();
         Lock cacheLock = getCacheLock(cacheEntry);
@@ -344,16 +356,20 @@ public abstract class AbstractGitSCMSource extends SCMSource {
             client.setRemoteUrl(remoteName, getRemote());
             listener.getLogger().println((prune ? "Fetching & pruning " : "Fetching ") + remoteName + "...");
             FetchCommand fetch = client.fetch_();
-            if (prune) {
-                fetch = fetch.prune();
-            }
+            fetch = fetch.prune(prune);
+
             URIish remoteURI = null;
             try {
                 remoteURI = new URIish(remoteName);
             } catch (URISyntaxException ex) {
                 listener.getLogger().println("URI syntax exception for '" + remoteName + "' " + ex);
             }
-            fetch.from(remoteURI, context.asRefSpecs()).execute();
+            final FetchCommand fetchCommand = fetch.from(remoteURI, context.asRefSpecs());
+            if (!delayFetch) {
+                fetchCommand.execute();
+            } else if (retriever instanceof Retriever2) {
+                return ((Retriever2<T>)retriever).run(client, remoteName, fetchCommand);
+            }
             return retriever.run(client, remoteName);
         } finally {
             cacheLock.unlock();
@@ -541,21 +557,25 @@ public abstract class AbstractGitSCMSource extends SCMSource {
                 return;
             }
         }
-        doRetrieve(new Retriever<Void>() {
+        doRetrieve(new Retriever2<Void>() {
             @Override
-            public Void run(GitClient client, String remoteName) throws IOException, InterruptedException {
+            public Void run(GitClient client, String remoteName, FetchCommand fetch) throws IOException, InterruptedException {
+                final Map<String, ObjectId> remoteReferences;
+                if (context.wantBranches() || context.wantTags() || context.wantOtherRefs()) {
+                    listener.getLogger().println("Listing remote references...");
+                    boolean headsOnly = !context.wantOtherRefs() && context.wantBranches();
+                    boolean tagsOnly = !context.wantOtherRefs() && context.wantTags();
+                    remoteReferences = client.getRemoteReferences(
+                            client.getRemoteUrl(remoteName), null, headsOnly, tagsOnly
+                    );
+                } else {
+                    remoteReferences = Collections.emptyMap();
+                }
+                fetch.execute();
                 final Repository repository = client.getRepository();
                 try (RevWalk walk = new RevWalk(repository);
                      GitSCMSourceRequest request = context.newRequest(AbstractGitSCMSource.this, listener)) {
-                    Map<String, ObjectId> remoteReferences = null;
-                    if (context.wantBranches() || context.wantTags() || context.wantOtherRefs()) {
-                        listener.getLogger().println("Listing remote references...");
-                        boolean headsOnly = !context.wantOtherRefs() && context.wantBranches();
-                        boolean tagsOnly = !context.wantOtherRefs() && context.wantTags();
-                        remoteReferences = client.getRemoteReferences(
-                                client.getRemoteUrl(remoteName), null, headsOnly, tagsOnly
-                        );
-                    }
+
                     if (context.wantBranches()) {
                         discoverBranches(repository, walk, request, remoteReferences);
                     }
@@ -757,7 +777,7 @@ public abstract class AbstractGitSCMSource extends SCMSource {
                 }
                 listener.getLogger().format("Processed %d tags%n", count);
             }
-        }, context, listener, true);
+        }, context, listener, true, true);
     }
 
     /**
@@ -1438,27 +1458,6 @@ public abstract class AbstractGitSCMSource extends SCMSource {
                                            BuildChooserContext context) throws IOException, InterruptedException {
             // we have ditched that crazy multiple branch stuff from the regular GIT SCM.
             return data == null ? null : data.lastBuild;
-        }
-
-        @Extension
-        public static class DescriptorImpl extends BuildChooserDescriptor {
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public String getDisplayName() {
-                return "Specific revision";
-            }
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public boolean isApplicable(java.lang.Class<? extends Item> job) {
-                return SCMSourceOwner.class.isAssignableFrom(job);
-            }
-
         }
 
     }
