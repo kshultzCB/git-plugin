@@ -355,7 +355,6 @@ public class GitSCMTest extends AbstractGitTestCase {
         assertFalse("scm polling should not detect any more changes after build", project.poll(listener).hasChanges());
     }
 
-    // FILE TEST
     /**
      * testMergeCommitInExcludedRegionIsIgnored() confirms behavior of excluded regions with merge commits.
      * This test has excluded and included regions, for files ending with .excluded and .included,
@@ -392,7 +391,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // DIRECTORY TEST
     /**
      * testMergeCommitInExcludedDirectoryIsIgnored() confirms behavior of excluded directories with merge commits.
      * This test has excluded and included directories, named /excluded/ and /included/,respectively. The repository
@@ -406,7 +404,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitInExcludedDirectoryIsIgnored() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "/excluded/.*", null, "/included/.*");
+        FreeStyleProject project = setupProject("master", false, null, "excluded/.*", null, "included/.*");
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -429,7 +427,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // FILE TEST
     /**
      * testMergeCommitInIncludedRegionIsProcessed() confirms behavior of included regions with merge commits.
      * This test has excluded and included regions, for files ending with .excluded and .included, respectively.
@@ -467,7 +464,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // DIRECTORY TEST - FAILS CURRENTLY
     /**
      * testMergeCommitInIncludedRegionIsProcessed() confirms behavior of included directories with merge commits.
      * This test has excluded and included directories, named /excluded/ and /included/, respectively. The repository
@@ -481,7 +477,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitInIncludedDirectoryIsProcessed() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "/excluded/.*", null, "/included/.*");
+        FreeStyleProject project = setupProject("master", false, null, "excluded/.*", null, "included/.*");
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -506,7 +502,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // FILE TEST
     /**
      * testMergeCommitOutsideIncludedRegionIsIgnored() confirms behavior of included regions with merge commits.
      * This test has an included region defined, for files ending with .included. There is no excluded region
@@ -544,7 +539,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // DIRECTORY TEST
     /**
      * testMergeCommitOutsideIncludedDirectoryIsIgnored() confirms behavior of included directories with merge commits.
      * This test has only an included directory `/included`  defined. The git repository is set up so that
@@ -558,7 +552,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitOutsideIncludedDirectoryIsIgnored() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, null, null, "./included/.*");
+        FreeStyleProject project = setupProject("master", false, null, null, null, "included/.*");
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -582,7 +576,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // FILE TEST
     /**
      * testMergeCommitOutsideExcludedRegionIsProcessed() confirms behavior of excluded regions with merge commits.
      * This test has an excluded region defined, for files ending with .excluded. There is no included region defined.
@@ -621,7 +614,6 @@ public class GitSCMTest extends AbstractGitTestCase {
                 project.poll(listener).hasChanges());
     }
 
-    // DIRECTORY TEST - FAILS CURRENTLY
     /**
      * testMergeCommitOutsideExcludedDirectoryIsProcessed() confirms behavior of excluded directories with merge commits.
      * This test has an excluded directory `excluded` defined. There is no `included` directory defined. The repository
@@ -636,7 +628,7 @@ public class GitSCMTest extends AbstractGitTestCase {
     public void testMergeCommitOutsideExcludedDirectoryIsProcessed() throws Exception {
         final String branchToMerge = "new-branch-we-merge-to-master";
 
-        FreeStyleProject project = setupProject("master", false, null, "/excluded/.*", null, null);
+        FreeStyleProject project = setupProject("master", false, null, "excluded/.*", null, null);
 
         final String initialCommit = "initialCommit";
         commit(initialCommit, johnDoe, "Commit " + initialCommit + " to master");
@@ -660,9 +652,6 @@ public class GitSCMTest extends AbstractGitTestCase {
         assertTrue("SCM polling should process the change, because it falls outside the excluded directory.",
                 project.poll(listener).hasChanges());
     }
-
-
-
 
     @Test
     public void testIncludedRegionWithDeeperCommits() throws Exception {
